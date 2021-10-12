@@ -158,8 +158,20 @@ def cdf_usage_times(collection_list):
     plot_cdf(usage_scooter, "usage_scooter")
     plot_cdf(usage_other, "usage_other")
 
-
-
+#Plots the cdf of working time in terms of slots (1 slot == 15 minutes)
+def cdf_working_time(collection_list):
+    working_both = []
+    working_scooter = []
+    working_other = []
+    for collection in collection_list:
+        working_both.append(collection.working_time_slots)
+        if collection.type == "scooter":
+            working_scooter.append(collection.working_time_slots)
+        else:
+            working_other.append(collection.working_time_slots)
+    plot_cdf(working_both, "working_both_slots")
+    plot_cdf(working_scooter, "working_scooter_slots")
+    plot_cdf(working_other, "working_other_slots")
 
 
 #Main Method
