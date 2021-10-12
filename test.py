@@ -6,6 +6,7 @@ import numpy as np
 from dateutil.parser import parse
 import matplotlib.pyplot as plt
 
+#Encapsulates info about one specific trip for a scooter
 class Vehicle:
     def __init__(self, id, dev_id, type, duration, distance, start, end, modified, month, hour, 
     day_week, council_start, council_end, year, census_start, census_end, start_central, end_central):
@@ -29,6 +30,7 @@ class Vehicle:
         self.end_central = end_central
         self.datetime = None #Will be overwritten later
 
+#Encapsulates all info about a specific scooter (device id)
 class Vehicle_Collection:
     def __init__(self, dev_id, type):
         self.dev_id = dev_id
@@ -36,11 +38,15 @@ class Vehicle_Collection:
         self.trip_list = []
         self.duration_seconds = None #Will be overwritten later
         self.usage_times = None #Will be overwritten later
+        self.working_time_seconds = None #Will be overwritten later
+        self.working_time_slots = None #Will be overwritten later, one slot == 15 minutes
 
+#Helper method for parse_csv
 def row_to_obj(row):
     return Vehicle(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], 
     row[9], row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17])
 
+#Helper method for parse_csv
 def collection_list_update(collection_list, veh_object):
     for collection in collection_list:
         if collection.dev_id == veh_object.dev_id:
@@ -50,9 +56,9 @@ def collection_list_update(collection_list, veh_object):
         collection_new = Vehicle_Collection(veh_object.dev_id, veh_object.type)
         collection_new.trip_list.append(veh_object)
         collection_list = np.append(collection_list, collection_new)
-        #collection_list.append(collection_new)
     return collection_list
 
+#Parses csv file to obtain a np array of "Vehicle_Collection" objects
 def parse_csv():
     filename = "scooter_data.csv"
     fields = []
@@ -72,6 +78,7 @@ def parse_csv():
                 start = time.time()  
     return collection_list
 
+#Sorts trip list in ascending order of "start" date
 def sort_collection(collection_list):
     for collection in collection_list:
         trip_list = collection.trip_list
@@ -82,7 +89,7 @@ def sort_collection(collection_list):
         collection.trip_list = trip_list
     return collection_list
 
-#Only use on sorted lists
+#Total lifetime of scooter (includes idle and working days). Only use on sorted data
 def duration_seconds(collection_list):
     for collection in collection_list:
         trip_list = collection.trip_list
@@ -93,10 +100,27 @@ def duration_seconds(collection_list):
         collection.duration_seconds = duration_seconds
     return collection_list
 
+#Add usage time (number of trips) to vehicle collection
 def usage_times(collection_list):
     for collection in collection_list:
         trip_list = collection.trip_list
         collection.usage_times = len(trip_list)
+    return collection_list
+
+#Add working_time (summation of all trip times) to vehicle collection
+def working_time(collection_list):
+    for collection in collection_list:
+        trip_list = collection.trip_list
+        working_time_seconds = 0
+        for trip in trip_list:
+            start_string = trip.start
+            end_string = trip.end
+            start_datetime = parse(start_string, dayfirst=False)
+            end_datetime = parse(end_string, dayfirst=False)
+            duration = end_datetime - start_datetime
+            working_time_seconds = working_time_seconds + duration.total_seconds()
+        collection.working_time_seconds = working_time_seconds
+        collection.working_time_slots = working_time_seconds / (60*15) #Seconds -> Minutes (60) -> Slots (15)
     return collection_list
 
 #Call on list of Vehicle_Collection before exporting to csv + plotting
@@ -104,9 +128,11 @@ def organize_data(collection_list):
     collection_list = sort_collection(collection_list)
     collection_list = duration_seconds(collection_list)
     collection_list = usage_times(collection_list)
+    collection_list = working_time(collection_list)
 
     return collection_list
 
+#Plots the cdf of usage times
 def cdf_usage_times(collection_list):
     usage_list = []
     for collection in collection_list:
