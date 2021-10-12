@@ -72,7 +72,7 @@ def parse_csv():
             collection_list = collection_list_update(collection_list, veh) 
             if (csvreader.line_num % 1000) == 0:
                 end = time.time()
-                print("No. : %d"%(csvreader.line_num))
+                print("No. : %d"%(csvreader.line_num)) #Print just to ensure code is running
                 print("Time for add: ", (end-start), "sec")
                 print("Length of np array: ", collection_list.size)
                 start = time.time()  
@@ -132,19 +132,37 @@ def organize_data(collection_list):
 
     return collection_list
 
-#Plots the cdf of usage times
-def cdf_usage_times(collection_list):
-    usage_list = []
-    for collection in collection_list:
-        usage_list.append(collection.usage_times)
-    count, bins_count = np.histogram(usage_list, bins=10)
+#Helper method for plotting cdf. input_data is a list of data (should be numeric). 
+#output_name is a string to identify the figure. Do not include "_cdf.png" in the output_name string.
+def plot_cdf(input_data, output_name):
+    count, bins_count = np.histogram(input_data, bins=10)
     pdf = count / sum(count)
     cdf = np.cumsum(pdf)
     plt.plot(bins_count[1:], pdf, color="red", label="PDF")
     plt.plot(bins_count[1:], cdf, label="CDF")
     plt.legend()
-    plt.savefig('usage_times_cdf.png')
+    plt.savefig(output_name + "_cdf.png")
 
+#Plots the cdf of usage times
+def cdf_usage_times(collection_list):
+    usage_both = []
+    usage_scooter = []
+    usage_other = []
+    for collection in collection_list:
+        usage_both.append(collection.usage_times)
+        if collection.type == "scooter":
+            usage_scooter.append(collection.usage_times)
+        else:
+            usage_other.append(collection.usage_times)
+    plot_cdf(usage_both, "usage_both")
+    plot_cdf(usage_scooter, "usage_scooter")
+    plot_cdf(usage_other, "usage_other")
+
+
+
+
+
+#Main Method
 if __name__ == "__main__":
     #test_list = parse_csv()
     Vehicle1 = Vehicle(1, 1, 1, 1, 1, '05/29/2020 02:15:00 AM', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
