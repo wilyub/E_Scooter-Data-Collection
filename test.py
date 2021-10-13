@@ -88,6 +88,7 @@ def sort_collection(collection_list):
             trip.datetime = parse(date_string, dayfirst=False)
         trip_list.sort(key=lambda x: x.datetime)
         collection.trip_list = trip_list
+    print("Sort collection is finished.")
     return collection_list
 
 #Total lifetime of scooter (includes idle and working days). Only use on sorted data
@@ -100,6 +101,7 @@ def duration_seconds(collection_list):
         duration_seconds = duration.total_seconds()
         collection.duration_seconds = duration_seconds
         collection.duration_days = duration_seconds / (60*60*24) #Seconds -> Minutes (60) -> Hours (60) -> Days (24)
+    print("Duration seconds is finished.")
     return collection_list
 
 #Add usage time (number of trips) to vehicle collection
@@ -107,6 +109,7 @@ def usage_times(collection_list):
     for collection in collection_list:
         trip_list = collection.trip_list
         collection.usage_times = len(trip_list)
+    print("Usage time is finished.")
     return collection_list
 
 #Add working_time (summation of all trip times) to vehicle collection
@@ -123,6 +126,7 @@ def working_time(collection_list):
             working_time_seconds = working_time_seconds + duration.total_seconds()
         collection.working_time_seconds = working_time_seconds
         collection.working_time_slots = working_time_seconds / (60*15) #Seconds -> Minutes (60) -> Slots (15)
+    print("Working time is finished.")
     return collection_list
 
 #Add utilization (working time / total life time) to vehicle collection. 
@@ -131,7 +135,11 @@ def utilization(collection_list):
     for collection in collection_list:
         working_time = collection.working_time_seconds
         lifetime = collection.duration_seconds
-        collection.utilization = working_time / lifetime
+        if lifetime == 0: #Got a div by 0 error, possibly for a scooter that only had 1 trip (so start - final start = 0)
+            collection.utilization = 0
+        else:
+            collection.utilization = working_time / lifetime
+    print("Utilization is finished.")
     return collection_list
 
 #Call on list of Vehicle_Collection before exporting to csv + plotting
@@ -153,6 +161,7 @@ def plot_cdf(input_data, output_name):
     plt.plot(bins_count[1:], cdf, label="CDF")
     plt.legend()
     plt.savefig(output_name + "_cdf.png")
+    plt.clf()
 
 #Plots the cdf of usage times
 def cdf_usage_times(collection_list):
@@ -226,71 +235,8 @@ def launch_script():
     collection_list = parse_csv("scooter_data.csv")
     collection_list = organize_data(collection_list)
     graph_functions(collection_list)
+    print("Script is finished.")
 
 #Main Method
 if __name__ == "__main__":
     launch_script()
-
-
-    #test_list = parse_csv()
-    # Vehicle1 = Vehicle(1, 1, 1, 1, 1, '05/29/2020 02:15:00 AM', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-    # Vehicle2 = Vehicle(1, 1, 1, 1, 1, '04/18/2020 05:15:00 AM', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-    # Vehicle3 = Vehicle(1, 1, 1, 1, 1, '04/18/2020 05:00:00 AM', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-    # Vehicle4 = Vehicle(1, 1, 1, 1, 1, '03/29/2020 02:15:00 AM', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-    # Vehicle5 = Vehicle(1, 1, 1, 1, 1, '05/18/2020 05:15:00 AM', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-    # Vehicle6 = Vehicle(1, 1, 1, 1, 1, '04/18/2020 05:00:00 AM', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
-    # col_test = Vehicle_Collection(1, 1)
-    # col_test.trip_list = [Vehicle1, Vehicle2, Vehicle3]
-    # col_test_2 = Vehicle_Collection(1,1)
-    # col_test_2.trip_list = [Vehicle4, Vehicle5, Vehicle6]
-    # test_list = [col_test, col_test_2]
-    # col1 = Vehicle_Collection(1,1)
-    # col2 = Vehicle_Collection(1,1)
-    # col3 = Vehicle_Collection(1,1)
-    # col4 = Vehicle_Collection(1,1)
-    # col5 = Vehicle_Collection(1,1)
-    # col6 = Vehicle_Collection(1,1)
-    # col7 = Vehicle_Collection(1,1)
-    # col8 = Vehicle_Collection(1,1)
-    # col9 = Vehicle_Collection(1,1)    
-    # col10 = Vehicle_Collection(1,1)
-    # col11 = Vehicle_Collection(1,1)
-    # col12 = Vehicle_Collection(1,1)
-    # col13 = Vehicle_Collection(1,1)
-    # col14 = Vehicle_Collection(1,1)
-    # col16 = Vehicle_Collection(1,1)
-    # col15 = Vehicle_Collection(1,1)
-    # col17 = Vehicle_Collection(1,1)
-    # col18 = Vehicle_Collection(1,1)
-    # col19 = Vehicle_Collection(1,1)
-    # col20 = Vehicle_Collection(1,1)
-    # col21 = Vehicle_Collection(1,1)
-    # col22 = Vehicle_Collection(1,1)
-    # col23 = Vehicle_Collection(1,1)
-    # col1.usage_times = 42
-    # col2.usage_times = 43
-    # col3.usage_times = 45
-    # col4.usage_times = 20
-    # col5.usage_times = 25
-    # col6.usage_times = 36
-    # col7.usage_times = 50
-    # col8.usage_times = 42
-    # col9.usage_times = 33
-    # col10.usage_times = 44
-    # col11.usage_times = 28
-    # col12.usage_times = 40
-    # col13.usage_times = 4
-    # col14.usage_times = 39
-    # col15.usage_times = 43
-    # col16.usage_times = 25
-    # col17.usage_times = 34
-    # col18.usage_times = 37
-    # col19.usage_times = 21
-    # col20.usage_times = 16
-    # col21.usage_times = 18
-    # col22.usage_times = 23
-    # col23.usage_times = 20
-    # test_col = [col1, col2, col3, col4, col5, col6, col7, col8, col9, col10,
-    # col11, col12, col13, col14, col15, col16, col17, col18, col19, col20, col21, col22, col23]
-    # cdf_usage_times(test_col)
-    #new_list = organize_data(test_list)
