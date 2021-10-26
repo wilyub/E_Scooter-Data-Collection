@@ -64,7 +64,7 @@ def collection_list_update(collection_list, veh_object):
 
 def parse_all_files():
     collection_list = np.array([])
-    for file in glob.glob("*.csv"):
+    for file in glob.glob("data/*.csv"):
         collection_list = parse_csv(file, collection_list)
         print("File Finished: ", file, ".")
     return collection_list
