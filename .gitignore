@@ -4,8 +4,8 @@ __pycache__/
 *$py.class
 
 # Big File
-scooter_data.csv
-temp_data.csv
+*.csv
+*.json
 
 # C extensions
 *.so

@@ -5,12 +5,14 @@ import pandas as pd
 import numpy as np
 from dateutil.parser import parse
 import matplotlib.pyplot as plt
+import glob
 
 #Encapsulates info about one specific trip for a scooter
 class Vehicle:
     def __init__(self, id, dev_id, type, duration, distance, start, end, modified, month, hour, 
     day_week, council_start, council_end, year, census_start, census_end, start_central, end_central):
         self.id = id
+        self.accuracy = accuracy
         self.dev_id = dev_id
         self.type = type
         self.duration = duration
@@ -60,23 +62,21 @@ def collection_list_update(collection_list, veh_object):
         collection_list = np.append(collection_list, collection_new)
     return collection_list
 
-#Parses csv file to obtain a np array of "Vehicle_Collection" objects
-def parse_csv(filename):
-    fields = []
+def parse_all_files():
     collection_list = np.array([])
+    for file in glob.glob("*.csv"):
+        collection_list = parse_csv(file, collection_list)
+        print("File Finished: ", file, ".")
+    return collection_list
+
+#Parses csv file to obtain a np array of "Vehicle_Collection" objects
+def parse_csv(filename, collection_list):
     with open(filename, 'r') as csvfile:
         csvreader = csv.reader(csvfile)
-        fields = next(csvreader)
-        start = time.time()
+        next(csvreader)
         for row in csvreader:
             veh = row_to_obj(row)
             collection_list = collection_list_update(collection_list, veh) 
-            if (csvreader.line_num % 1000) == 0:
-                end = time.time()
-                print("No. : %d"%(csvreader.line_num)) #Print just to ensure code is running
-                print("Time for add: ", (end-start), "sec")
-                print("Length of np array: ", collection_list.size)
-                start = time.time()  
     return collection_list
 
 #Sorts trip list in ascending order of "start" date
@@ -232,7 +232,7 @@ def graph_functions(collection_list):
 
 #Only function to be called in Main method. Performs all parsing, organizing, and analyzing.
 def launch_script():
-    collection_list = parse_csv("scooter_data.csv")
+    collection_list = parse_all_files()
     collection_list = organize_data(collection_list)
     graph_functions(collection_list)
     print("Script is finished.")
