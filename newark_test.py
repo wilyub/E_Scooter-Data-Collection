@@ -7,10 +7,12 @@ import numpy as np
 from dateutil.parser import parse
 import matplotlib.pyplot as plt
 import glob
+import gmaps
+from ipywidgets.embed import embed_minimal_html
 
 #Encapsulates info about one specific trip for a scooter
 class Vehicle:
-    def __init__(self, vehicle_id, vehicle_type, provider_id, provider_name, trip_id, duration, distance, start, end):
+    def __init__(self, vehicle_id, vehicle_type, provider_id, provider_name, trip_id, duration, distance, start, end, gps):
         self.dev_id = vehicle_id
         self.type = vehicle_type
         self.provider_id = provider_id
@@ -21,6 +23,8 @@ class Vehicle:
         self.start = start[:-3] #Cut off 3 zeros to get seconds
         self.end = end[:-3] #Cut off 3 zeros to get seconds
         self.datetime = None #Will be overwritten later
+        self.gps = gps
+        self.gps_parsed = None #Array of GPS tuples
 
 #Encapsulates all info about a specific scooter (device id)
 class Vehicle_Collection:
@@ -38,7 +42,7 @@ class Vehicle_Collection:
 
 #Helper method for parse_csv
 def row_to_obj(row):
-    return Vehicle(row[1], row[2], row[4], row[5], row[6], row[7], row[8], row[9], row[10])
+    return Vehicle(row[1], row[2], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11])
 
 #Helper method for parse_csv
 def collection_list_update(collection_list, veh_object):
@@ -237,6 +241,9 @@ def cdf_utilization(collection_list):
 
 #Plots all of the cdfs we want. Only use after organize_data()
 def graph_functions(collection_list):
+    gps_parse(collection_list)
+
+
     cdf_usage_times(collection_list)
     cdf_distance_traveled(collection_list)
     cdf_working_time(collection_list)
@@ -249,6 +256,37 @@ def launch_script():
     collection_list = organize_data(collection_list)
     graph_functions(collection_list)
     print("Script is finished.")
+
+def gps_parse(collection_list):
+    for collection in collection_list:
+        trip_list = collection.trip_list
+        for trip in trip_list:
+            gps_strings = trip.gps.split("]")
+            temp_array = []
+            first_str = gps_strings[0]
+            first_str = first_str[2:]
+            first_str = first_str.split(",")
+            first_str[1] = (first_str[1])[1:]
+            temp_array.append((float(first_str[0]), float(first_str[1])))
+            del gps_strings[0]
+            #Fix
+            for gps in gps_strings:
+                print('y')
+
+def helper_gps_parse(gps_str):
+    gps_str = gps_str[3:]
+    gps_str = gps_str.split(",")
+    gps_str[1] = (gps_str[1])[1:]
+    return (float(gps_str[0]), float(gps_str[1]))
+
+def heatmap(collection_list):
+    columns = ["latitude", "longitude"]
+    a = []
+
+
+
+
+
 
 #Main Method
 if __name__ == "__main__":
