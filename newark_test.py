@@ -1,4 +1,5 @@
 import csv
+from os import startfile
 import time
 import datetime
 import pandas as pd
@@ -9,27 +10,16 @@ import glob
 
 #Encapsulates info about one specific trip for a scooter
 class Vehicle:
-    def __init__(self, id, dev_id, type, duration, distance, start, end, modified, month, hour, 
-    day_week, council_start, council_end, year, census_start, census_end, start_central, end_central):
-        self.id = id
-        self.accuracy = accuracy
-        self.dev_id = dev_id
-        self.type = type
-        self.duration = duration
-        self.distance = distance
-        self.start = start
-        self.end = end
-        self.modified = modified
-        self.month = month
-        self.hour = hour
-        self.day_week = day_week
-        self.council_start = council_start
-        self.council_end = council_end
-        self.year = year 
-        self.census_start = census_start
-        self.census_end = census_end
-        self.start_central = start_central
-        self.end_central = end_central
+    def __init__(self, vehicle_id, vehicle_type, provider_id, provider_name, trip_id, duration, distance, start, end):
+        self.dev_id = vehicle_id
+        self.type = vehicle_type
+        self.provider_id = provider_id
+        self.provider_name = provider_name
+        self.trip_id = trip_id
+        self.duration = int(duration)
+        self.distance = int(distance)
+        self.start = start[:-3] #Cut off 3 zeros to get seconds
+        self.end = end[:-3] #Cut off 3 zeros to get seconds
         self.datetime = None #Will be overwritten later
 
 #Encapsulates all info about a specific scooter (device id)
@@ -38,17 +28,17 @@ class Vehicle_Collection:
         self.dev_id = dev_id
         self.type = type
         self.trip_list = []
+        self.total_distance = 0 #Will be added onto later
         self.duration_seconds = None #Will be overwritten later
         self.duration_days = None #Will be overwritten later, = duration_seconds/(60*60*24)
         self.usage_times = None #Will be overwritten later
         self.working_time_seconds = None #Will be overwritten later
-        self.working_time_slots = None #Will be overwritten later, one slot == 15 minutes
+        self.working_time_days = None #Will be overwritten later, = working_time_seconds/(60*60*24)
         self.utilization = None #Will be overwritten later, utilization = time worked / total life time
 
 #Helper method for parse_csv
 def row_to_obj(row):
-    return Vehicle(row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8], 
-    row[9], row[10], row[11], row[12], row[13], row[14], row[15], row[16], row[17])
+    return Vehicle(row[1], row[2], row[4], row[5], row[6], row[7], row[8], row[9], row[10])
 
 #Helper method for parse_csv
 def collection_list_update(collection_list, veh_object):
@@ -85,7 +75,7 @@ def sort_collection(collection_list):
         trip_list = collection.trip_list
         for trip in trip_list:
             date_string = trip.start
-            trip.datetime = parse(date_string, dayfirst=False)
+            trip.datetime = datetime.datetime.fromtimestamp(int(date_string))
         trip_list.sort(key=lambda x: x.datetime)
         collection.trip_list = trip_list
     print("Sort collection is finished.")
@@ -112,20 +102,23 @@ def usage_times(collection_list):
     print("Usage time is finished.")
     return collection_list
 
+def distance_traveled(collection_list):
+    for collection in collection_list:
+        trip_list = collection.trip_list
+        for trip in trip_list:
+            collection.total_distance += trip.distance
+    print("Distance traveled is finished.")
+    return collection_list
+
 #Add working_time (summation of all trip times) to vehicle collection
 def working_time(collection_list):
     for collection in collection_list:
         trip_list = collection.trip_list
         working_time_seconds = 0
         for trip in trip_list:
-            start_string = trip.start
-            end_string = trip.end
-            start_datetime = parse(start_string, dayfirst=False)
-            end_datetime = parse(end_string, dayfirst=False)
-            duration = end_datetime - start_datetime
-            working_time_seconds = working_time_seconds + duration.total_seconds()
+            working_time_seconds += trip.duration
         collection.working_time_seconds = working_time_seconds
-        collection.working_time_slots = working_time_seconds / (60*15) #Seconds -> Minutes (60) -> Slots (15)
+        collection.working_time_days = working_time_seconds/(60*60*24)
     print("Working time is finished.")
     return collection_list
 
@@ -147,6 +140,7 @@ def organize_data(collection_list):
     collection_list = sort_collection(collection_list)
     collection_list = duration_seconds(collection_list)
     collection_list = usage_times(collection_list)
+    collection_list = distance_traveled(collection_list)
     collection_list = working_time(collection_list)
     collection_list = utilization(collection_list)
     return collection_list
@@ -154,6 +148,8 @@ def organize_data(collection_list):
 #Helper method for plotting cdf. input_data is a list of data (should be numeric). 
 #output_name is a string to identify the figure. Do not include "_cdf.png" in the output_name string.
 def plot_cdf(input_data, output_name):
+    if len(input_data) == 0:
+        return
     count, bins_count = np.histogram(input_data, bins=10)
     pdf = count / sum(count)
     cdf = np.cumsum(pdf)
@@ -174,9 +170,25 @@ def cdf_usage_times(collection_list):
             usage_scooter.append(collection.usage_times)
         else:
             usage_other.append(collection.usage_times)
-    plot_cdf(usage_both, "usage_both")
+    #Only scooter data atm
+    #plot_cdf(usage_both, "usage_both")
     plot_cdf(usage_scooter, "usage_scooter")
-    plot_cdf(usage_other, "usage_other")
+    #plot_cdf(usage_other, "usage_other")
+
+
+def cdf_distance_traveled(collection_list):
+    distance_both = []
+    distance_scooter = []
+    distance_other = []
+    for collection in collection_list:
+        distance_both.append(collection.total_distance)
+        if collection.type == "scooter":
+            distance_scooter.append(collection.total_distance)
+        else:
+            distance_other.append(collection.total_distance)
+    #plot_cdf(distance_both, "distance_both")
+    plot_cdf(distance_scooter, "distance_scooter")
+    #plot_cdf(distance_other, "distance_other")
 
 #Plots the cdf of working time in terms of slots (1 slot == 15 minutes)
 def cdf_working_time(collection_list):
@@ -184,14 +196,14 @@ def cdf_working_time(collection_list):
     working_scooter = []
     working_other = []
     for collection in collection_list:
-        working_both.append(collection.working_time_slots)
+        working_both.append(collection.working_time_days)
         if collection.type == "scooter":
-            working_scooter.append(collection.working_time_slots)
+            working_scooter.append(collection.working_time_days)
         else:
-            working_other.append(collection.working_time_slots)
-    plot_cdf(working_both, "working_both_slots")
-    plot_cdf(working_scooter, "working_scooter_slots")
-    plot_cdf(working_other, "working_other_slots")
+            working_other.append(collection.working_time_days)
+    #plot_cdf(working_both, "working_both_slots")
+    plot_cdf(working_scooter, "working_scooter_days")
+    #plot_cdf(working_other, "working_other_slots")
 
 #Plots the cdf of lifetime of vehicle (both working and idle days) in days
 def cdf_duration_days(collection_list):
@@ -204,9 +216,9 @@ def cdf_duration_days(collection_list):
             duration_scooter.append(collection.duration_days)
         else:
             duration_other.append(collection.duration_days)
-    plot_cdf(duration_both, "duration_both_days")
+    #plot_cdf(duration_both, "duration_both_days")
     plot_cdf(duration_scooter, "duration_scooter_days")
-    plot_cdf(duration_other, "duration_other_days")
+    #plot_cdf(duration_other, "duration_other_days")
 
 #Plots the cdf of utilization as a percent (0.5 -> 50% utilization)
 def cdf_utilization(collection_list):
@@ -219,13 +231,14 @@ def cdf_utilization(collection_list):
             utilization_scooter.append(collection.utilization)
         else:
             utilization_other.append(collection.utilization)
-    plot_cdf(utilization_both, "utilization_both")
+    #plot_cdf(utilization_both, "utilization_both")
     plot_cdf(utilization_scooter, "utilization_scooter")
-    plot_cdf(utilization_other, "utilization_other")
+    #plot_cdf(utilization_other, "utilization_other")
 
 #Plots all of the cdfs we want. Only use after organize_data()
 def graph_functions(collection_list):
     cdf_usage_times(collection_list)
+    cdf_distance_traveled(collection_list)
     cdf_working_time(collection_list)
     cdf_duration_days(collection_list)
     cdf_utilization(collection_list)
