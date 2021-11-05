@@ -47,6 +47,12 @@ class Gps_Info:
 
 #Helper method for parse_csv
 def row_to_obj(row):
+    if int(row[7]) > 6000:
+        if int(row[8])/1000 > 20:
+            return Vehicle(row[1], row[2], row[4], row[5], row[6], "0", "0", row[9], row[10], row[11])
+        return Vehicle(row[1], row[2], row[4], row[5], row[6], "0", row[8], row[9], row[10], row[11])
+    if int(row[8])/1000 > 20:
+        return Vehicle(row[1], row[2], row[4], row[5], row[6], row[7], "0", row[9], row[10], row[11])
     return Vehicle(row[1], row[2], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11])
 
 #Helper method for parse_csv
@@ -151,20 +157,6 @@ def utilization(collection_list):
             collection.utilization = working_time / lifetime
     print("Utilization is finished.")
     return collection_list
-
-def daily_trips(collection_list):
-    trips_array = []
-    for x in range(4, 10):
-        for y in range(1, 31):
-            day_trips = 0
-            for collection in collection_list:
-                for trip in collection.trip_list:
-                    month = trip.datetime.month
-                    day = trip.datetime.day
-                    if x == month and y == day:
-                        day_trips += 1
-            trips_array.append(day_trips)
-    return trips_array
 
 #Call on list of Vehicle_Collection before exporting to csv + plotting
 def organize_data(collection_list):
@@ -296,7 +288,90 @@ def graph_functions(collection_list):
     cdf_utilization(collection_list)
     cdf_trip_distance(collection_list)
     cdf_trip_duration(collection_list)
-    plot_daily_trips(collection_list)
+    #plot_daily_trips(collection_list)
+    #box_trips(collection_list)
+    #box_duration(collection_list)
+    box_length(collection_list)
+
+
+def daily_trips(collection_list):
+    trips_array = []
+    for x in range(4, 10):
+        for y in range(1, 31):
+            day_trips = 0
+            for collection in collection_list:
+                for trip in collection.trip_list:
+                    month = trip.datetime.month
+                    day = trip.datetime.day
+                    if x == month and y == day:
+                        day_trips += 1
+            trips_array.append(day_trips)
+    return trips_array
+
+def box_trips(collection_list):
+    trips_hours = []
+    for x in range(0, 24):
+        temp_hours = []
+        for y in range(1, 31):
+            counter = 0
+            for collection in collection_list:
+                for trip in collection.trip_list:
+                    hour = trip.datetime.hour
+                    day = trip.datetime.day
+                    if day != y:
+                        continue
+                    if x == hour:
+                        counter += 1
+            temp_hours.append(counter)
+        trips_hours.append(np.asarray(temp_hours))
+    plt.boxplot(trips_hours)
+    plt.xlabel("Hours in the Day")
+    plt.ylabel("# of Trips")
+    plt.title("Average # of Trips Taken During \"x\" Hour in a Day")
+    plt.savefig("boxplot_trips.png")
+    plt.clf()
+
+def box_duration(collection_list):
+    trips_hours = []
+    for x in range(0, 24):
+        temp_hours = []
+        for y in range(1, 31):
+            for collection in collection_list:
+                for trip in collection.trip_list:
+                    hour = trip.datetime.hour
+                    day = trip.datetime.day
+                    if day != y:
+                        continue
+                    if x == hour:
+                        temp_hours.append(trip.duration/60)
+        trips_hours.append(np.asarray(temp_hours))
+    plt.boxplot(trips_hours)
+    plt.xlabel("Hours in the Day")
+    plt.ylabel("Time (Minutes)")
+    plt.title("Average Duration of Trips Taken During \"x\" Hour in a Day")
+    plt.savefig("boxplot_duration.png")
+    plt.clf()
+
+def box_length(collection_list):
+    trips_hours = []
+    for x in range(0, 24):
+        temp_hours = []
+        for y in range(1, 31):
+            for collection in collection_list:
+                for trip in collection.trip_list:
+                    hour = trip.datetime.hour
+                    day = trip.datetime.day
+                    if day != y:
+                        continue
+                    if x == hour:
+                        temp_hours.append(trip.distance/1000)
+        trips_hours.append(np.asarray(temp_hours))
+    plt.boxplot(trips_hours)
+    plt.xlabel("Hours in the Day")
+    plt.ylabel("Distance (km)")
+    plt.title("Average Length of Trips Taken During \"x\" Hour in a Day")
+    plt.savefig("boxplot_length.png")
+    plt.clf()
 
 def plot_daily_trips(collection_list):
     trips_array = daily_trips(collection_list)
@@ -351,10 +426,10 @@ def statistics(collection_list):
 def launch_script():
     collection_list = parse_all_files()
     collection_list = organize_data(collection_list)
-    #graph_functions(collection_list)
+    graph_functions(collection_list)
     #statistics(collection_list)
-    gps_array = gps_parse(collection_list)
-    gps_to_csv(gps_array)
+    #gps_array = gps_parse(collection_list)
+    #gps_to_csv(gps_array)
     print("Script is finished.")
 
 def gps_parse(collection_list):
