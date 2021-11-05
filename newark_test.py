@@ -7,8 +7,6 @@ import numpy as np
 from dateutil.parser import parse
 import matplotlib.pyplot as plt
 import glob
-import gmaps
-from ipywidgets.embed import embed_minimal_html
 
 #Encapsulates info about one specific trip for a scooter
 class Vehicle:
@@ -41,6 +39,12 @@ class Vehicle_Collection:
         self.working_time_days = None #Will be overwritten later, = working_time_seconds/(60*60*24)
         self.utilization = None #Will be overwritten later, utilization = time worked / total life time
 
+class Gps_Info:
+    def __init__(self, lat, long, weight):
+        self.lat = lat
+        self.long = long
+        self.weight = weight
+
 #Helper method for parse_csv
 def row_to_obj(row):
     return Vehicle(row[1], row[2], row[4], row[5], row[6], row[7], row[8], row[9], row[10], row[11])
@@ -71,6 +75,8 @@ def parse_csv(filename, collection_list):
         next(csvreader)
         for row in csvreader:
             if len(row) == 0:
+                continue
+            if row[0] == '':
                 continue
             veh = row_to_obj(row)
             collection_list = collection_list_update(collection_list, veh) 
@@ -146,6 +152,20 @@ def utilization(collection_list):
     print("Utilization is finished.")
     return collection_list
 
+def daily_trips(collection_list):
+    trips_array = []
+    for x in range(4, 10):
+        for y in range(1, 31):
+            day_trips = 0
+            for collection in collection_list:
+                for trip in collection.trip_list:
+                    month = trip.datetime.month
+                    day = trip.datetime.day
+                    if x == month and y == day:
+                        day_trips += 1
+            trips_array.append(day_trips)
+    return trips_array
+
 #Call on list of Vehicle_Collection before exporting to csv + plotting
 def organize_data(collection_list):
     collection_list = sort_collection(collection_list)
@@ -158,10 +178,10 @@ def organize_data(collection_list):
 
 #Helper method for plotting cdf. input_data is a list of data (should be numeric). 
 #output_name is a string to identify the figure. Do not include "_cdf.png" in the output_name string.
-def plot_cdf(input_data, output_name, title_str, x_label):
+def plot_cdf(input_data, output_name, title_str, x_label, bin_count):
     if len(input_data) == 0:
         return
-    count, bins_count = np.histogram(input_data, bins=10)
+    count, bins_count = np.histogram(input_data, bins=bin_count)
     pdf = count / sum(count)
     cdf = np.cumsum(pdf)
     plt.plot(bins_count[1:], pdf, color="red", label="PDF")
@@ -186,7 +206,7 @@ def cdf_usage_times(collection_list):
             usage_other.append(collection.usage_times)
     #Only scooter data atm
     #plot_cdf(usage_both, "usage_both")
-    plot_cdf(usage_scooter, "usage_scooter", "CDF of # of Trips per Scooter", "# of Trips")
+    plot_cdf(usage_scooter, "usage_scooter", "CDF of # of Trips per Scooter", "# of Trips", 10)
     #plot_cdf(usage_other, "usage_other")
 
 
@@ -201,7 +221,7 @@ def cdf_distance_traveled(collection_list):
         else:
             distance_other.append(collection.total_distance)
     #plot_cdf(distance_both, "distance_both")
-    plot_cdf(distance_scooter, "distance_scooter", "CDF of Total Distance Traveled per Scooter", "Distance (km)")
+    plot_cdf(distance_scooter, "distance_scooter", "CDF of Total Distance Traveled per Scooter", "Distance (km)", 10)
     #plot_cdf(distance_other, "distance_other")
 
 #Plots the cdf of working time in terms of days
@@ -216,7 +236,7 @@ def cdf_working_time(collection_list):
         else:
             working_other.append(collection.working_time_days)
     #plot_cdf(working_both, "working_both_slots")
-    plot_cdf(working_scooter, "working_scooter_days", "CDF of Total Active Travel Time per Scooter", "Time (Days)")
+    plot_cdf(working_scooter, "working_scooter_days", "CDF of Total Active Travel Time per Scooter", "Time (Days)", 10)
     #plot_cdf(working_other, "working_other_slots")
 
 #Plots the cdf of lifetime of vehicle (both working and idle days) in days
@@ -231,7 +251,7 @@ def cdf_duration_days(collection_list):
         else:
             duration_other.append(collection.duration_days)
     #plot_cdf(duration_both, "duration_both_days")
-    plot_cdf(duration_scooter, "duration_scooter_days", "CDF of Total Lifetime per Scooter", "Time (Days)")
+    plot_cdf(duration_scooter, "duration_scooter_days", "CDF of Total Lifetime per Scooter", "Time (Days)", 10)
     #plot_cdf(duration_other, "duration_other_days")
 
 #Plots the cdf of utilization as a percent (0.5 -> 50% utilization)
@@ -246,19 +266,51 @@ def cdf_utilization(collection_list):
         else:
             utilization_other.append(collection.utilization)
     #plot_cdf(utilization_both, "utilization_both")
-    plot_cdf(utilization_scooter, "utilization_scooter", "CDF of Utilization of Scooter (Travel Time / Lifetime)", "Percent (0.5 = 50%)")
+    plot_cdf(utilization_scooter, "utilization_scooter", "CDF of Utilization of Scooter (Travel Time / Lifetime)", "Percent (0.5 = 50%)", 10)
     #plot_cdf(utilization_other, "utilization_other")
+
+def cdf_trip_distance(collection_list):
+    trip_distance_scooter = []
+    for collection in collection_list:
+        for trip in collection.trip_list:
+            if (trip.distance/1000) > 20: #Threshold of 20km to remove outliers, can try higher thresholds
+                continue
+            trip_distance_scooter.append(trip.distance/1000)
+    plot_cdf(trip_distance_scooter, "trip_distance_scooter", "CDF of Individual Trip Distance", "Distance (km)", 10)
+
+def cdf_trip_duration(collection_list):
+    trip_duration_scooter = []
+    for collection in collection_list:
+        for trip in collection.trip_list:
+            if trip.duration > 6000: #Threshold for outlier data
+                continue
+            trip_duration_scooter.append(trip.duration/60)
+    plot_cdf(trip_duration_scooter, "trip_duration_scooter", "CDF of Individual Trip Duration", "Time (Minutes)", 10)
 
 #Plots all of the cdfs we want. Only use after organize_data()
 def graph_functions(collection_list):
-    #gps_parse(collection_list)
-
-
     cdf_usage_times(collection_list)
     cdf_distance_traveled(collection_list)
     cdf_working_time(collection_list)
     cdf_duration_days(collection_list)
     cdf_utilization(collection_list)
+    cdf_trip_distance(collection_list)
+    cdf_trip_duration(collection_list)
+    plot_daily_trips(collection_list)
+
+def plot_daily_trips(collection_list):
+    trips_array = daily_trips(collection_list)
+    plot_cdf(trips_array, "trips_array", "CDF of # of Trips in One Day", "# of Trips", 10)
+    temp = len(trips_array)//6 #6 Months of data
+    xticks_list = [0, temp, temp*2, temp*3, temp*4, temp*5]
+    xtick_labels = ["April", "May", "June", "July", "August", "September"]
+    plt.plot(trips_array)
+    plt.xticks(xticks_list, xtick_labels)
+    plt.title("Number of Trips on Each Day")
+    plt.xlabel("Date")
+    plt.ylabel("# of Trips")
+    plt.savefig("daily_trips.png")
+    plt.clf()
 
 def statistics(collection_list):
     print("Number of vehicles: ", len(collection_list))
@@ -268,6 +320,16 @@ def statistics(collection_list):
         if collection.type not in types:
             types.append(collection.type)
     print("Types of vehicles: ", *types)
+
+    scoot_count = 0
+    other_count = 0
+    for collection in collection_list:
+        if collection.type == "scooter":
+            scoot_count += 1
+        else:
+            other_count += 1
+    print("Number of Scooters: ", scoot_count)
+    print("Number of Other: ", other_count)
 
     provs = []
     for collection in collection_list:
@@ -289,36 +351,99 @@ def statistics(collection_list):
 def launch_script():
     collection_list = parse_all_files()
     collection_list = organize_data(collection_list)
-    graph_functions(collection_list)
-    statistics(collection_list)
+    #graph_functions(collection_list)
+    #statistics(collection_list)
+    gps_array = gps_parse(collection_list)
+    gps_to_csv(gps_array)
     print("Script is finished.")
 
 def gps_parse(collection_list):
+    temp_array = []
     for collection in collection_list:
         trip_list = collection.trip_list
         for trip in trip_list:
+            if trip.gps == "[]":
+                continue
             gps_strings = trip.gps.split("]")
-            temp_array = []
             first_str = gps_strings[0]
             first_str = first_str[2:]
             first_str = first_str.split(",")
             first_str[1] = (first_str[1])[1:]
-            temp_array.append((float(first_str[0]), float(first_str[1])))
+            temp_array.append((trip.trip_id, trip.dev_id, float(first_str[1]), float(first_str[0]))) #Lat and Long are flipped in data
             del gps_strings[0]
-            #Fix
-            for gps in gps_strings:
-                print('y')
+            del gps_strings[-1] #Two empty strings at end of split array
+            del gps_strings[-1]
+            for count, gps in enumerate(gps_strings):
+                if count % 2 == 1:
+                    continue
+                tuple_temp = helper_gps_parse(gps)
+                temp_array.append((trip.trip_id, trip.dev_id, tuple_temp[0], tuple_temp[1]))
+    return temp_array
 
 def helper_gps_parse(gps_str):
     gps_str = gps_str[3:]
     gps_str = gps_str.split(",")
     gps_str[1] = (gps_str[1])[1:]
-    return (float(gps_str[0]), float(gps_str[1]))
+    return (float(gps_str[1]), float(gps_str[0])) #Lat and Long are flipped in data
 
-def heatmap(collection_list):
-    columns = ["latitude", "longitude"]
-    a = []
+def gps_to_csv(gps_array):
+    with open('gps.csv', 'w', newline='') as out:
+        csv_out = csv.writer(out)
+        csv_out.writerow(['trip id', 'device id', 'latitude', 'longitude'])
+        for pair in gps_array:
+            csv_out.writerow(pair)
 
+def gps_parse_first(collection_list):
+    temp_array = []
+    for collection in collection_list:
+        trip_list = collection.trip_list
+        for trip in trip_list:
+            if trip.gps == "[]":
+                continue
+            gps_strings = trip.gps.split("]")
+            first_str = gps_strings[0]
+            first_str = first_str[2:]
+            first_str = first_str.split(",")
+            first_str[1] = (first_str[1])[1:]
+            temp_array.append((float(first_str[1]), float(first_str[0]))) #Lat and Long are flipped in data
+    return temp_array
+
+def gps_parse_last(collection_list):
+    temp_array = []
+    for collection in collection_list:
+        trip_list = collection.trip_list
+        for trip in trip_list:
+            if trip.gps == "[]":
+                continue
+            gps_strings = trip.gps.split("]")
+            del gps_strings[-1] #Two empty strings at end of split array
+            del gps_strings[-1]
+            temp_array.append(helper_gps_parse(gps_strings[-1]))
+    return temp_array
+
+# def comp_gps(x1, x2):
+#     return abs(x1 - x2) <0.000001
+
+# def gps_shrink(gps_array):
+#     shrink_array = []
+#     while len(gps_array) != 0:
+#         current = gps_array[0]
+#         del gps_array[0]
+#         weight = 0
+#         for gps in gps_array:
+#             if comp_gps(gps[0], current[0]) and comp_gps(gps[1], current[1]):
+#                 weight += 1
+#                 del gps_array[gps_array.index(gps)]
+#         shrink_array.append(Gps_Info(current[0], current[1], weight))
+#         print("Finish ", len(shrink_array), " coord")
+#     return shrink_array
+
+# def gps_to_csv_shrink(gps_array):
+#     with open('gps.csv', 'w', newline='') as out:
+#         csv_out = csv.writer(out)
+#         csv_out.writerow(['latitude', 'longitude', 'weight'])
+#         for tuple in gps_array:
+#             csv_out.writerow((tuple.lat, tuple.long, tuple.weight))
 
 #Main Method
 if __name__ == "__main__":
