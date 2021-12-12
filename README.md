@@ -11,3 +11,6 @@ Data:
 Go to the following webpage and click the "Export" button. A section should popup which lets you download "CSV" or "CSV for Excel". Click the "CSV" button. Save the file and let it download (about 3 GB in size). Rename the file to "scooter_data.csv" and place it in the same folder as the "test.py" script and you can now run the script.
 - https://data.austintexas.gov/Transportation-and-Mobility/Shared-Micromobility-Vehicle-Trips/7d8e-dm7r
 
+
+The nb_test.py script is for a private dataset. 
+
